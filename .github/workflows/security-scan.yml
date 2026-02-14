@@ -1,6 +1,5 @@
 name: DevSecOps Pipeline
 
-# Trigger this workflow on every push to the main branch
 on:
   push:
     branches: [ "main" ]
@@ -12,43 +11,52 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    # 1. Check out the code from the repo
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    # 2. Set up Python environment
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
 
-    # 3. Install dependencies
     - name: Install Dependencies
       run: |
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    # 4. Start the Target App in the background
-    - name: Start Target App
+    - name: Run Security Suite (App + Scanner)
       env:
-        # Set to TRUE to ensure the build PASSES (Green Check)
         SECURE_MODE: 'TRUE' 
       run: |
-        # Start app in background and log output to app.log
+        # 1. Start the app in the background & log output
+        echo "Starting Target App..."
         nohup python target_app.py > app.log 2>&1 &
-        echo "Waiting for app to start..."
-        # Increased to 10 seconds to prevent "Connection Refused" on slow runners
-        sleep 10 
+        
+        # 2. Smart Wait: Loop until the app responds (max 15 seconds)
+        echo "Waiting for app to initialize..."
+        for i in {1..15}; do
+          if curl -s http://127.0.0.1:5000 > /dev/null; then
+            echo "App is UP and running!"
+            break
+          fi
+          sleep 1
+        done
 
-    # 5. Run the Security Scanner
-    - name: Run OWASP Header Scan
-      run: |
-        # Try to run the scanner. If it fails, print the app logs so we can debug.
-        python scanner.py http://127.0.0.1:5000 || (echo "--- APP CRASH LOGS ---" && cat app.log && exit 1)
+        # 3. Last Check: If app is still down, show logs and fail
+        if ! curl -s http://127.0.0.1:5000 > /dev/null; then
+          echo "ERROR: App failed to start. Here are the logs:"
+          echo "----------------------------------------------"
+          cat app.log
+          echo "----------------------------------------------"
+          exit 1
+        fi
 
-    # 6. Upload Scan Report as an Artifact
+        # 4. Run the Scanner
+        echo "App is ready. Starting Scan..."
+        python scanner.py http://127.0.0.1:5000
+
     - name: Upload Security Report
-      if: always() # Run this even if the scan failed
+      if: always()
       uses: actions/upload-artifact@v3
       with:
         name: security-scan-report
