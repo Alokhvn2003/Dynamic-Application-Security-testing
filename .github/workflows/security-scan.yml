@@ -24,18 +24,21 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Start Target App (Vulnerable Mode)
+    - name: Start Target App
       env:
-        # We start with TRUE so the first run passes!
-        SECURE_MODE: 'TRUE' 
+        # STEP 1: We start with FALSE to prove the scanner works (It should FAIL)
+        SECURE_MODE: 'FALSE' 
       run: |
+        # Start app in background and log output
         nohup python target_app.py > app.log 2>&1 &
-        echo "Waiting for app to start..."
-        sleep 5 
+        echo "Starting app..."
+        # Increased sleep to 10 seconds to prevent "Connection Refused" errors
+        sleep 10 
 
     - name: Run OWASP Header Scan
       run: |
-        python scanner.py http://127.0.0.1:5000
+        # If this fails, we print the app log to see why it crashed
+        python scanner.py http://127.0.0.1:5000 || (echo "--- APP LOGS ---" && cat app.log && exit 1)
 
     - name: Upload Security Report
       if: always()
