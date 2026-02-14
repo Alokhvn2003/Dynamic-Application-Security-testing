@@ -27,7 +27,7 @@ jobs:
     - name: Start Target App
       env:
         # STEP 1: We start with FALSE to prove the scanner works (It should FAIL)
-        SECURE_MODE: 'FALSE' 
+        SECURE_MODE: 'TRUE' 
       run: |
         # Start app in background and log output
         nohup python target_app.py > app.log 2>&1 &
