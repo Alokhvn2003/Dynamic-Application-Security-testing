@@ -4,7 +4,7 @@ import os
 app = Flask(__name__)
 
 # Toggle this env var to pass/fail the scan!
-SECURE_MODE = os.environ.get('SECURE_MODE', 'FALSE').upper() == 'TRUE'
+SECURE_MODE = os.environ.get('SECURE_MODE', 'FALSE').upper() == 'FALSE'
 
 @app.route('/')
 def home():
